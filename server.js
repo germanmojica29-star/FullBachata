@@ -7,6 +7,10 @@ const mongoose = require('mongoose'); // Cargamos la nueva librería profesional
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
+// Ruta para que cargue el index.html automáticamente al entrar al enlace directo
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // CONFIGURACIÓN DE TU BASE DE DATOS EN LA NUBE
 // (Cambia esto por tu enlace real de MongoDB Atlas)
