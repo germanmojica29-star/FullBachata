@@ -1,0 +1,10 @@
+{
+  "nav_by": "install",
+  "name": "Escáner de Eventos QR",
+  "short_name": "ScannerQR",
+  "start_url": "/scanner.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "portrait"
+}

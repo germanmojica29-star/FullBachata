@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Acceso Eventos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; padding-bottom: 60px; }
+        .container { max-width: 750px; margin-top: 40px; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+        .btn-custom { background-color: #0d6efd; color: white; width: 100%; padding: 12px; font-weight: bold; border-radius: 8px; }
+        .badge-success { background-color: #198754; color: white; }
+        .badge-warning { background-color: #ffc107; color: #000; }
+        .action-btn { padding: 4px 8px; font-size: 14px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card p-4 mb-4">
+        <h2 class="text-center mb-2 fw-bold text-dark">Registro de Asistentes</h2>
+        <p class="text-muted text-center small mb-4">Verifica la transferencia antes de generar el código.</p>
+        
+        <div class="mb-4">
+            <label class="form-label fw-semibold text-secondary">Nombre Completo del Invitado</label>
+            <input type="text" id="fullName" class="form-control form-control-lg" placeholder="Ej: Carlos Mendoza">
+        </div>
+
+        <button class="btn btn-custom mb-2" onclick="generarQR()">Generar Acceso Único QR</button>
+
+        <div id="qrResult" class="card p-3 mt-4 text-center bg-light" style="display: none; border-left: 5px solid #198754;">
+            <h5 class="text-success fw-bold mb-3">¡Código QR Creado!</h5>
+            <p id="displayName" class="lead fw-bold text-dark mb-3"></p>
+            <div class="d-flex justify-content-center mb-3">
+                <img id="qrImage" src="" class="img-fluid border bg-white p-2" style="max-width: 200px; border-radius: 8px;">
+            </div>
+            <div class="d-grid gap-2">
+                <a id="downloadLink" class="btn btn-outline-success btn-sm">Descargar Imagen QR</a>
+                <a id="whatsappBtn" class="btn btn-success" target="_blank">Enviar por WhatsApp 📲</a>
+            </div>
+            <button class="btn btn-link btn-sm text-secondary mt-3" onclick="limpiarFormulario()">Registrar otro asistente</button>
+        </div>
+    </div>
+
+    <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold m-0">Lista de Control</h4>
+            <button class="btn btn-sm btn-outline-secondary" onclick="cargarLista()">🔄 Actualizar Lista</button>
+        </div>
+        
+        <div class="row g-2 text-center mb-4">
+            <div class="col-6">
+                <div class="bg-light p-2 rounded border">
+                    <span class="text-muted small d-block">YA INGRESARON</span>
+                    <strong id="countCheckedIn" class="text-success fs-5">0</strong>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="bg-light p-2 rounded border">
+                    <span class="text-muted small d-block">POR LLEGAR</span>
+                    <strong id="countPending" class="text-warning fs-5">0</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                        <th>Hora de Entrada</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaAsistentes">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function generarQR() {
+        const nameInput = document.getElementById('fullName');
+        if(!nameInput.value.trim()) return alert("Escribe un nombre antes de continuar.");
+
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: nameInput.value })
+        });
+        
+        const data = await response.json();
+        
+        if(data.success) {
+            desplegarQR(data.name, data.qrDataUrl);
+            cargarLista();
+        }
+    }
+
+    // Función auxiliar para pintar el QR arriba y armar el mensaje de WhatsApp
+    function desplegarQR(nombre, qrDataUrl) {
+        document.getElementById('displayName').innerText = nombre;
+        document.getElementById('qrImage').src = qrDataUrl;
+        document.getElementById('downloadLink').href = qrDataUrl;
+        document.getElementById('downloadLink').download = `QR_${nombre.replace(/\s+/g, '_')}.png`;
+        
+        const mensajeOriginal = `¡Hola ${nombre}! Aquí tienes tu código QR único de acceso para el evento. Preséntalo en la entrada.`;
+        document.getElementById('whatsappBtn').href = `https://wa.me/?text=${encodeURIComponent(mensajeOriginal)}`;
+        
+        document.getElementById('qrResult').style.display = 'block';
+    }
+
+    async function cargarLista() {
+        const response = await fetch('/api/attendees');
+        const asistentes = await response.json();
+        
+        const tbody = document.getElementById('tablaAsistentes');
+        tbody.innerHTML = '';
+        
+        let ingresados = 0;
+        let pendientes = 0;
+
+        asistentes.forEach(persona => {
+            if(persona.used) ingresados++; else pendientes++;
+
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td class="fw-semibold">${persona.name}</td>
+                <td>
+                    <span class="badge ${persona.used ? 'badge-success' : 'badge-warning'}">
+                        ${persona.used ? 'Dentro ✅' : 'Esperando ⏳'}
+                    </span>
+                </td>
+                <td class="text-muted small">${persona.usedAt ? persona.usedAt : '—'}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-info action-btn me-1" title="Ver QR de nuevo" onclick="recuperarQR('${persona.id}', '${persona.name}')">👁️</button>
+                    <button class="btn btn-sm btn-outline-primary action-btn me-1" title="Editar nombre" onclick="editarAsistente('${persona.id}', '${persona.name}')">✏️</button>
+                    <button class="btn btn-sm btn-outline-danger action-btn" title="Eliminar" onclick="eliminarAsistente('${persona.id}', '${persona.name}')">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(fila);
+        });
+
+        document.getElementById('countCheckedIn').innerText = ingresados;
+        document.getElementById('countPending').innerText = pendientes;
+    }
+
+    // NUEVA FUNCIÓN: Recupera el QR exacto de la base de datos usando un generador en tiempo real
+    function recuperarQR(id, name) {
+        // Usamos una API confiable para renderizar el ID exacto que tiene guardado el backend
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${id}`;
+        
+        desplegarQR(`${name} (Copia de respaldo)`, qrUrl);
+        
+        // Sube suavemente la pantalla hasta el recuadro del QR
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function eliminarAsistente(id, name) {
+        if(confirm(`¿Estás seguro de que deseas eliminar a "${name}" de la lista? El QR ya no funcionará.`)) {
+            const response = await fetch(`/api/attendees/${id}`, { method: 'DELETE' });
+            const data = await response.json();
+            if(data.success) {
+                cargarLista();
+            }
+        }
+    }
+
+    async function editarAsistente(id, currentName) {
+        const newName = prompt("Modifica el nombre completo del asistente:", currentName);
+        if (newName === null) return; 
+        if (newName.trim() === "") return alert("El nombre no puede quedar vacío.");
+
+        const response = await fetch(`/api/attendees/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newName: newName })
+        });
+        const data = await response.json();
+        if(data.success) {
+            cargarLista();
+        }
+    }
+
+    function limpiarFormulario() {
+        document.getElementById('fullName').value = '';
+        document.getElementById('qrResult').style.display = 'none';
+    }
+
+    // Inicializar la tabla al cargar la página
+    cargarLista();
+</script>
+</body>
+</html>

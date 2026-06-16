@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector de Entrada - Validación Segura</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #121212; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; }
+        h2 { margin-bottom: 20px; font-weight: 600; letter-spacing: -0.5px; }
+        #reader { width: 100%; max-width: 420px; background: #1e1e1e; border-radius: 16px; overflow: hidden; border: 1px solid #2d2d2d; }
+        #result-box { width: 100%; max-width: 420px; margin-top: 20px; padding: 30px 20px; border-radius: 16px; text-align: center; display: none; box-sizing: border-box; }
+        .ALLOWED { background: #198754; color: white; }
+        .USED { background: #d97706; color: white; }
+        .INVALID { background: #dc3545; color: white; }
+        .btn-next { background: white; color: black; border: none; padding: 14px 30px; font-weight: bold; border-radius: 8px; margin-top: 20px; cursor: pointer; font-size: 16px; width: 100%; }
+        #result-name { font-size: 28px; font-weight: 800; margin: 15px 0 5px 0; text-transform: uppercase; }
+    </style>
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+
+<h2>Escanear Código de Acceso</h2>
+<div id="reader"></div>
+
+<div id="result-box">
+    <h3 id="result-status" style="margin:0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;"></h3>
+    <p id="result-name"></p>
+    <p id="result-message" style="margin: 5px 0 0 0; font-size: 15px; opacity: 0.85;"></p>
+    <button class="btn-next" onclick="resetScanner()">Listo - Siguiente Persona</button>
+</div>
+
+<script>
+    let html5QrcodeScanner;
+    let isProcessing = false;
+
+    function startScanner() {
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+        });
+        html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    async function onScanSuccess(decodedText) {
+        if (isProcessing) return; 
+        isProcessing = true;
+        
+        // Detener la cámara momentáneamente mientras procesa la base de datos
+        html5QrcodeScanner.clear();
+
+        try {
+            const response = await fetch('/api/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticketId: decodedText })
+            });
+            const data = await response.json();
+            displayResult(data);
+        } catch (error) {
+            alert("Error crítico de red. Verifica la conexión.");
+            resetScanner();
+        }
+    }
+
+    function displayResult(data) {
+        const box = document.getElementById('result-box');
+        const statusH3 = document.getElementById('result-status');
+        const nameP = document.getElementById('result-name');
+        const messageP = document.getElementById('result-message');
+
+        box.className = data.status; 
+        nameP.innerText = data.name ? data.name : '';
+        messageP.innerText = data.message;
+
+        if (data.status === 'ALLOWED') {
+            statusH3.innerText = "✓ ACCESO EN REGLA";
+        } else if (data.status === 'USED') {
+            statusH3.innerText = "⚠ ENTRADA YA UTILIZADA";
+        } else {
+            statusH3.innerText = "❌ CÓDIGO INCORRECTO";
+        }
+
+        document.getElementById('reader').style.display = 'none';
+        box.style.display = 'block';
+    }
+
+    function resetScanner() {
+        document.getElementById('result-box').style.display = 'none';
+        document.getElementById('reader').style.display = 'block';
+        isProcessing = false;
+        startScanner();
+    }
+
+    startScanner();
+</script>
+<script>
+    // Registrar el service worker para que sea instalable
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+    }
+</script>
+</body>
+</html>
