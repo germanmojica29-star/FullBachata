@@ -2,18 +2,20 @@ const express = require('express');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const mongoose = require('mongoose'); // Cargamos la nueva librería profesional
+const mongoose = require('mongoose'); 
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+
+// Cambio optimizado para evitar problemas de rutas en la nube de Render
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Ruta para que cargue el index.html automáticamente al entrar al enlace directo
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // CONFIGURACIÓN DE TU BASE DE DATOS EN LA NUBE
-// (Cambia esto por tu enlace real de MongoDB Atlas)
 const MONGO_URI = "mongodb+srv://admin:12345@cluster0.nhqazb2.mongodb.net/sistema_qr?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
@@ -37,10 +39,9 @@ app.post('/api/register', async (req, res) => {
         return res.status(400).json({ error: 'El nombre es requerido' });
     }
 
-    const ticketId = uuidv4(); // Genera el Token secreto
+    const ticketId = uuidv4(); 
 
     try {
-        // Guardamos al usuario directamente en la base de datos en la nube
         const nuevoAsistente = new Attendee({
             ticketId,
             name: name.trim()
@@ -79,7 +80,7 @@ app.post('/api/validate', async (req, res) => {
         ticket.used = true;
         const ahora = new Date();
         ticket.usedAt = ahora.toLocaleTimeString() + ' ' + ahora.toLocaleDateString();
-        await ticket.save(); // Guarda el cambio de estado en la nube
+        await ticket.save(); 
 
         return res.json({
             status: 'ALLOWED',
@@ -96,7 +97,7 @@ app.get('/api/attendees', async (req, res) => {
     try {
         const dbList = await Attendee.find();
         const list = dbList.map(doc => ({
-            id: doc.ticketId, // Mantenemos el mismo formato para que admin.html no sufra cambios
+            id: doc.ticketId, 
             name: doc.name,
             used: doc.used,
             usedAt: doc.usedAt
