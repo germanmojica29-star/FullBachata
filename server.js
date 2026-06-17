@@ -141,10 +141,11 @@ app.put('/api/attendees/:id', async (req, res) => {
         res.status(500).json({ error: 'Error al editar' });
     }
 });
+// CONFIGURACIÓN DINÁMICA DEL PUERTO PARA RENDER
+const PORT = process.env.PORT || 3000;
 
-const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`=================================================`);
-    console.log(`Servidor corriendo en: http://localhost:${PORT}`);
+    console.log(`Servidor activo y escuchando en el puerto: ${PORT}`);
     console.log(`=================================================`);
 });
