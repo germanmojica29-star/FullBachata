@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
 });
 
 // CONFIGURACIÓN DE TU BASE DE DATOS EN LA NUBE
-const MONGO_URI = "mongodb+srv://Administración:12345@cluster0.nhqazb2.mongodb.net/sistema_qr?appName=Cluster0";
+const MONGO_URI = "mongodb+srv://fullbachta:12345@cluster0.nhqazb2.mongodb.net/sistema_qr?appName=Cluster0";
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ ¡Conectado con éxito a MongoDB Atlas en la nube!'))
     .catch(err => console.error('❌ Error al conectar a la base de datos:', err));
