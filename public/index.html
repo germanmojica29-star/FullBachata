@@ -83,13 +83,14 @@
 <script>
     async function generarQR() {
         const nameInput = document.getElementById('fullName');
-        if(!nameInput.value.trim()) return alert("Escribe un nombre antes de continuar.");
+        const nameValue = nameInput.value.trim();
+        if(!nameValue) return alert("Escribe un nombre antes de continuar.");
 
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name: nameInput.value })
+                body: JSON.stringify({ name: nameValue })
             });
             
             const data = await response.json();
@@ -98,7 +99,7 @@
                 desplegarQR(data.name, data.qrDataUrl, data.ticketId);
                 cargarLista();
             } else {
-                alert("Error al registrar");
+                alert("Error al registrar: " + (data.error || "Inténtalo de nuevo"));
             }
         } catch (error) {
             alert("Error de conexión con el servidor");
@@ -131,6 +132,9 @@
             asistentes.forEach(persona => {
                 if(persona.used) ingresados++; else pendientes++;
 
+                // Escapamos los strings de forma segura para los onclicks de los botones
+                const safeName = persona.name.replace(/'/g, "\\'");
+
                 const fila = document.createElement('tr');
                 fila.innerHTML = `
                     <td class="fw-semibold">${persona.name}</td>
@@ -141,9 +145,9 @@
                     </td>
                     <td class="text-muted small">${persona.usedAt ? persona.usedAt : '—'}</td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-outline-info action-btn me-1" title="Ver QR de nuevo" onclick="recuperarQR('${persona.id}', '${persona.name}')">👁️</button>
-                        <button class="btn btn-sm btn-outline-primary action-btn me-1" title="Editar nombre" onclick="editarAsistente('${persona.id}', '${persona.name}')">✏️</button>
-                        <button class="btn btn-sm btn-outline-danger action-btn" title="Eliminar" onclick="eliminarAsistente('${persona.id}', '${persona.name}')">🗑️</button>
+                        <button class="btn btn-sm btn-outline-info action-btn me-1" title="Ver QR de nuevo" onclick="recuperarQR('${persona.id}', '${safeName}')">👁️</button>
+                        <button class="btn btn-sm btn-outline-primary action-btn me-1" title="Editar nombre" onclick="editarAsistente('${persona.id}', '${safeName}')">✏️</button>
+                        <button class="btn btn-sm btn-outline-danger action-btn" title="Eliminar" onclick="eliminarAsistente('${persona.id}', '${safeName}')">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(fila);
