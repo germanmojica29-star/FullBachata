@@ -74,8 +74,7 @@
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="tablaAsistentes">
-                    </tbody>
+                <tbody id="tablaAsistentes"></tbody>
             </table>
         </div>
     </div>
@@ -86,22 +85,27 @@
         const nameInput = document.getElementById('fullName');
         if(!nameInput.value.trim()) return alert("Escribe un nombre antes de continuar.");
 
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name: nameInput.value })
-        });
-        
-        const data = await response.json();
-        
-        if(data.success) {
-            desplegarQR(data.name, data.qrDataUrl);
-            cargarLista();
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: nameInput.value })
+            });
+            
+            const data = await response.json();
+            
+            if(data.success) {
+                desplegarQR(data.name, data.qrDataUrl, data.ticketId);
+                cargarLista();
+            } else {
+                alert("Error al registrar");
+            }
+        } catch (error) {
+            alert("Error de conexión con el servidor");
         }
     }
 
-    // Función auxiliar para pintar el QR arriba y armar el mensaje de WhatsApp
-    function desplegarQR(nombre, qrDataUrl) {
+    function desplegarQR(nombre, qrDataUrl, ticketId) {
         document.getElementById('displayName').innerText = nombre;
         document.getElementById('qrImage').src = qrDataUrl;
         document.getElementById('downloadLink').href = qrDataUrl;
@@ -114,48 +118,47 @@
     }
 
     async function cargarLista() {
-        const response = await fetch('/api/attendees');
-        const asistentes = await response.json();
-        
-        const tbody = document.getElementById('tablaAsistentes');
-        tbody.innerHTML = '';
-        
-        let ingresados = 0;
-        let pendientes = 0;
+        try {
+            const response = await fetch('/api/attendees');
+            const asistentes = await response.json();
+            
+            const tbody = document.getElementById('tablaAsistentes');
+            tbody.innerHTML = '';
+            
+            let ingresados = 0;
+            let pendientes = 0;
 
-        asistentes.forEach(persona => {
-            if(persona.used) ingresados++; else pendientes++;
+            asistentes.forEach(persona => {
+                if(persona.used) ingresados++; else pendientes++;
 
-            const fila = document.createElement('tr');
-            fila.innerHTML = `
-                <td class="fw-semibold">${persona.name}</td>
-                <td>
-                    <span class="badge ${persona.used ? 'badge-success' : 'badge-warning'}">
-                        ${persona.used ? 'Dentro ✅' : 'Esperando ⏳'}
-                    </span>
-                </td>
-                <td class="text-muted small">${persona.usedAt ? persona.usedAt : '—'}</td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-info action-btn me-1" title="Ver QR de nuevo" onclick="recuperarQR('${persona.id}', '${persona.name}')">👁️</button>
-                    <button class="btn btn-sm btn-outline-primary action-btn me-1" title="Editar nombre" onclick="editarAsistente('${persona.id}', '${persona.name}')">✏️</button>
-                    <button class="btn btn-sm btn-outline-danger action-btn" title="Eliminar" onclick="eliminarAsistente('${persona.id}', '${persona.name}')">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(fila);
-        });
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td class="fw-semibold">${persona.name}</td>
+                    <td>
+                        <span class="badge ${persona.used ? 'badge-success' : 'badge-warning'}">
+                            ${persona.used ? 'Dentro ✅' : 'Esperando ⏳'}
+                        </span>
+                    </td>
+                    <td class="text-muted small">${persona.usedAt ? persona.usedAt : '—'}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-info action-btn me-1" title="Ver QR de nuevo" onclick="recuperarQR('${persona.id}', '${persona.name}')">👁️</button>
+                        <button class="btn btn-sm btn-outline-primary action-btn me-1" title="Editar nombre" onclick="editarAsistente('${persona.id}', '${persona.name}')">✏️</button>
+                        <button class="btn btn-sm btn-outline-danger action-btn" title="Eliminar" onclick="eliminarAsistente('${persona.id}', '${persona.name}')">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(fila);
+            });
 
-        document.getElementById('countCheckedIn').innerText = ingresados;
-        document.getElementById('countPending').innerText = pendientes;
+            document.getElementById('countCheckedIn').innerText = ingresados;
+            document.getElementById('countPending').innerText = pendientes;
+        } catch (error) {
+            console.error("Error cargando lista", error);
+        }
     }
 
-    // NUEVA FUNCIÓN: Recupera el QR exacto de la base de datos usando un generador en tiempo real
     function recuperarQR(id, name) {
-        // Usamos una API confiable para renderizar el ID exacto que tiene guardado el backend
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${id}`;
-        
-        desplegarQR(`${name} (Copia de respaldo)`, qrUrl);
-        
-        // Sube suavemente la pantalla hasta el recuadro del QR
+        desplegarQR(name, qrUrl, id);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -190,7 +193,6 @@
         document.getElementById('qrResult').style.display = 'none';
     }
 
-    // Inicializar la tabla al cargar la página
     cargarLista();
 </script>
 </body>
